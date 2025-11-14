@@ -1,0 +1,22 @@
+grafana:
+  podAnnotations:
+    sidecar.istio.io/inject: "false"
+kube-prometheus-stack:
+  grafana:
+    podAnnotations:
+      sidecar.istio.io/inject: "false"
+  prometheusOperator:
+    podAnnotations:
+      sidecar.istio.io/inject: "false"
+  prometheus:
+    prometheusSpec:
+      podMetadata:
+        annotations:
+          sidecar.istio.io/inject: "false"
+prometheus: 
+  podMetadata:
+    annotations:
+      sidecar.istio.io/inject: "false"
+operator:
+  podAnnotations:
+    sidecar.istio.io/inject: "false"

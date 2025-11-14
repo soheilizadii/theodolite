@@ -13,7 +13,7 @@ The TeaStore consists of six microservices and a MariaDB database.
 The entire application can easily deployed with Kubernetes using the provided resource files.
 
 In this example, we will create a Theodolite benchmark for the TeaStore.
-We use [Open Service Mesh (OSM)](https://openservicemesh.io/) to inject sidecar proxies into the TeaStore microservices, which allow us to gather latency and other metrics.
+We use [Istio](https://Istio.io/) to inject sidecar proxies into the TeaStore microservices, which allow us to gather latency and other metrics.
 
 ## Prerequisites
 
@@ -25,12 +25,12 @@ To get started, you need:
 
 ## Cluster Preparation
 
-Before running a benchmark, we need to install Theodolite and OSM on our cluster.
+Before running a benchmark, we need to install Theodolite and Istio on our cluster.
 
 ### Install Theodolite
 
 In general, Theodolite can be installed using Helm as described in the [installation guide](installation).
-However, we need to make sure that no OSM sidecards are injected into the pod of Theodolite, Prometheus, etc.
+However, we need to make sure that no Istio sidecards are injected into the pod of Theodolite, Prometheus, etc.
 As we do not use Kafka in this example, we can omit the Strimzi installation.
 If no further configuration is required, run the following command to install Theodolite:
 
@@ -38,31 +38,37 @@ If no further configuration is required, run the following command to install Th
 helm install theodolite theodolite/theodolite -f https://raw.githubusercontent.com/cau-se/theodolite/main/helm/preconfigs/osm-ready.yaml -f https://raw.githubusercontent.com/cau-se/theodolite/main/helm/preconfigs/kafka-less.yaml
 ```
 
-### Install Open Service Mesh
+### Install Istio
 
-To install OSM, we use the Helm chart provided by the OSM project. Run the following commands to install and configure OSM:
+To install Istio, we use the istioctl command-line tool provided by the Istio project.
+This tool automatically installs and configures the Istio control plane inside your Kubernetes cluster
 
 ```sh
+
 export NAMESPACE=default # Kubernetes namespace to be monitored
 
-kubectl create ns osm-system
-helm install osm osm --repo https://openservicemesh.github.io/osm --namespace osm-system --version 0.9.2 # A newer version would probably work as well
- 
-sleep 60s # Installation may take some time, so we wait a bit
+# Download the latest Istio release
+curl -L https://istio.io/downloadIstio | sh -
 
-kubectl patch meshconfig osm-mesh-config -n osm-system -p '{"spec":{"traffic":{"enablePermissiveTrafficPolicyMode":true}}}'  --type=merge
-kubectl patch meshconfig osm-mesh-config -n osm-system -p '{"spec":{"traffic":{"enableEgress":true}}}' --type=merge
+# Move into the Istio directory (adjust version if different)
+cd istio-1.28.0
 
-kubectl label namespace $NAMESPACE openservicemesh.io/monitored-by=osm --overwrite
-kubectl annotate namespace $NAMESPACE openservicemesh.io/metrics=enabled --overwrite
-kubectl annotate namespace $NAMESPACE openservicemesh.io/sidecar-injection=enabled --overwrite
+# Add istioctl to your PATH for this session
+export PATH=$PWD/bin:$PATH
+
+# Install Istio using the demo profile (no gateways, for internal testing)
+istioctl install -f samples/bookinfo/demo-profile-no-gateways.yaml -y
+
+# Label the namespace to enable automatic sidecar injection
+kubectl label namespace $NAMESPACE  istio-injection=enabled --overwrite
+
 ```
 
 
 ## Create a Benchmark for the TeaStore
 
 According to our Theodolite benchmarking method, we need to define a system under test (SUT) and a load generator for the benchmark.
-Quite obviously, the TeaStore enriched by OSM's Envoy sidecar proxies is the SUT.
+Quite obviously, the TeaStore enriched by Istio's Envoy sidecar proxies is the SUT.
 As load generator, we use JMeter along with the [browse profile](https://github.com/DescartesResearch/TeaStore/blob/master/examples/jmeter/teastore_browse_nogui.jmx) provided in the TeaStore repository.
 The desired benchmarking setup is shown in the following diagram:
 
@@ -209,7 +215,7 @@ We apply the [*lower bound restriction search*](concepts/search-strategies#lower
 
 ### Start the Benchmark
 
-To let Prometheus scrape OSM metrics, we need to create a PodMonitor.
+To let Prometheus scrape Istio metrics, we need to create a PodMonitor.
 Download the [PodMonitor from GitHub](https://github.com/SoerenHenning/TeaStore/blob/add-theodolite-example/examples/theodolite/pod-monitors.yaml) (or use the repository already cloned in the previous step) and apply it: (Of course, this could also be made part of the benchmark.)
 
 ```sh
