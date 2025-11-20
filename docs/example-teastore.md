@@ -35,7 +35,7 @@ As we do not use Kafka in this example, we can omit the Strimzi installation.
 If no further configuration is required, run the following command to install Theodolite:
 
 ```sh
-helm install theodolite theodolite/theodolite -f https://raw.githubusercontent.com/cau-se/theodolite/main/helm/preconfigs/osm-ready.yaml -f https://raw.githubusercontent.com/cau-se/theodolite/main/helm/preconfigs/kafka-less.yaml
+helm install theodolite theodolite/theodolite -f theodolite/helm/preconfigs/istio-ready.yaml -f theodolite/helm/preconfigs/kafka-less.yaml
 ```
 
 ### Install Istio
@@ -78,7 +78,7 @@ Although the TeaStore comes with Kubernetes resources (Deployments and Services)
 We created a fork of the TeaStore repository all required modifications. Clone it by running:
 
 ```sh
-git clone -b add-theodolite-example git@github.com:SoerenHenning/TeaStore.git
+git clone -b add-theodolite-example git@github.com:soheilizadii/TeaStore.git
 ```
 
 We now have to create ConfigMaps bundling these resources and a Benchmark resource describing the benchmark.
@@ -146,7 +146,7 @@ spec:
       offset: 0
       properties:
         externalSloUrl: "http://localhost:8082"
-        promQLQuery: "histogram_quantile(0.95,sum(irate(osm_request_duration_ms_bucket{destination_name='teastore_webui'}[1m])) by (le, destination_name))"
+        promQLQuery: "histogram_quantile(0.95,sum(irate(istio_request_duration_milliseconds_bucket{destination_service=~'teastore-webui.*',response_code='200'}[1m])) by (le, destination_service))"
         warmup: 600 #in seconds
         queryAggregation: max
         repetitionAggregation: median
